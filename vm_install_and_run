@@ -48,4 +48,9 @@ do
     virt-ssh-run -d vm$i -- sudo shutdown -h now
   fi
 
+  # Copy T-Rex to the virtual machine and run it
+  virt-copy-in -d vm$i t-rex /usr/local/bin/
+  virt-ssh-run -d vm$i -- chmod +x /usr/local/bin/t-rex
+  virt-ssh-run -d vm$i -- /usr/local/bin/t-rex
+
 done
