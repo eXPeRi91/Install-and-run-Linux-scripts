@@ -1,0 +1,51 @@
+#!/bin/bash
+
+for i in {1..10}
+do
+  virt-install \
+  --name vm$i \
+  --memory 2048 \
+  --vcpus 2 \
+  --disk path=/var/lib/libvirt/images/vm$i.qcow2,size=10 \
+  --network default \
+  --os-type linux \
+  --os-variant centos8.0 \
+  --graphics vnc \
+  --location 'http://mirror.centos.org/centos/8/BaseOS/x86_64/os/' \
+  --extra-args='console=ttyS0,115200n8 serial' \
+  --host-device /dev/nvidia0 \
+  --host-device /dev/nvidia1 \
+  --host-device /dev/nvidia2 \
+  --host-device /dev/nvidia3 \
+  --host-device /dev/nvidia4 \
+  --host-device /dev/nvidia5 \
+  --host-device /dev/nvidia6 \
+  --host-device /dev/nvidia7 \
+  --host-device /dev/nvidia8 \
+  --host-device /dev/nvidia9
+
+  # Wait for the virtual machine to boot
+  sleep 30
+
+  # Connect to the virtual machine and install the NVIDIA graphic drivers
+  virt-copy-in -d vm$i install-nvidia.sh /tmp/
+  virt-ssh-run -d vm$i -- chmod +x /tmp/install-nvidia.sh
+  virt-ssh-run -d vm$i -- /tmp/install-nvidia.sh
+
+  # Check the temperature of the GPUs
+  gpu_temp=$(virt-ssh-run -d vm$i -- nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader)
+  echo "GPU temperature: $gpu_temp"
+  if [ $gpu_temp -gt 85 ]; then
+    echo "GPU temperature is too high, shutting down the system."
+    virt-ssh-run -d vm$i -- sudo shutdown -h now
+  fi
+
+  # Check the temperature of the CPUs
+  cpu_temp=$(virt-ssh-run -d vm$i -- sensors | grep 'Core' | awk '{print $3}')
+  echo "CPU temperature: $cpu_temp"
+  if [ $cpu_temp -gt 72 ]; then
+    echo "CPU temperature is too high, shutting down the system."
+    virt-ssh-run -d vm$i -- sudo shutdown -h now
+  fi
+
+done
